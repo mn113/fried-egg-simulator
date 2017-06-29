@@ -1,0 +1,20 @@
+body {
+	background: black;
+	perspective: 800px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+#cooker {
+	border: 1px solid white;
+}
+#canvas {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 598px;
+	height: 598px;
+	border: 1px dashed teal;
+	transform-origin: center;
+	transform-type: preserve-3d;
+}
