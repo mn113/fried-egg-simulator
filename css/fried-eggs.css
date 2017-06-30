@@ -5,9 +5,6 @@ body {
 	align-items: center;
 	justify-content: center;
 }
-#cooker {
-	border: 1px solid white;
-}
 #canvas {
 	position: absolute;
 	top: 0;
@@ -17,4 +14,41 @@ body {
 	border: 1px dashed teal;
 	transform-origin: center;
 	transform-type: preserve-3d;
+	cursor: grab;
 }
+body.eggtool {
+	cursor: url(https://marthost.uk/fried-egg/img/egg2-icon.png) 40 40, crosshair;
+}
+#timer {
+	position: absolute;
+	top: 10px;
+	right: 10px;
+	text-align: right;
+	color: #ccc;
+	font: bold 5em Chewy, Helvetica;
+}
+ul#tools {
+	position: absolute;
+	margin: 0;
+	padding: 0 0 0 10px;
+	top: 10px;
+	left: 10px;
+	list-style: none;
+}
+li {
+	width: 80px;
+	height: 80px;
+	border: 1px solid #999;
+	background: rgba(255,255,255,0.2);
+	cursor: pointer;
+	color: transparent;
+	display: none;
+}
+li:first-child {
+	display: block;
+}
+#egg-tool { background: url(https://marthost.uk/fried-egg/img/egg2-icon.png); }
+#salt-tool { background: url(https://marthost.uk/fried-egg/img/salt-icon.png); }
+#pepper-tool { background: url(https://marthost.uk/fried-egg/img/pepper-icon.png); }
+#ketchup-tool { background: url(https://marthost.uk/fried-egg/img/ketchup-icon.png); }
+#brownsauce-tool { background: url(https://marthost.uk/fried-egg/img/brownsauce-icon.png); }
