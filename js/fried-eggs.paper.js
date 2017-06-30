@@ -38,10 +38,11 @@ yolk.fillColor = {
 };
 
 var egg = new Group([albumen, yolk]);
-
+var remnants = new Group();
 
 // EVENTS
 
+// Increase the points around albumen:
 albumen.onMouseUp = function(event) {
 	console.log("click", this.curves.length, "curves");
 	// Double the number of points:
@@ -72,16 +73,16 @@ pan.onMouseMove = function(event) {
 };
 
 // Draw countdown clock:
-var gameTimer = 20;
 var clock = new PointText(new Point(590, 70));
 clock.justification = 'right';
 clock.fontSize = 75;
 clock.fillColor = 'red';
 clock.content = '0:20';
+var gameTimer = 20;
 
 // Count down in 1-second steps:
 var clockLoop = setInterval(function() {
-	gameTimer -= 1;
+	gameTimer -= 0.020;
 	clock.content = '0:';
 	clock.content += (gameTimer < 10) ? '0' : '';
 	clock.content += Math.floor(gameTimer);
@@ -94,7 +95,21 @@ var clockLoop = setInterval(function() {
 		canvas.style.transform = null;
 		pan.fillColor.origin = origin;
 	}
-}, 1000);
+
+	// Cut albumen path if it intersects pan edge:
+	if (albumen.intersects(pan)) {
+		// Store chopped part elsewhere:
+		var edge = albumen.subtract(pan, {insert: false});
+		//edge.fillColor = 'green';
+		edge.copyTo(remnants);
+		edge.remove();
+		// Assign remaining egg white to albumen:
+		var temp = albumen.intersect(pan);
+		albumen.remove();
+		albumen = temp;
+		console.log("Items in egg group:", egg.children);
+	}
+}, 20);
 
 
 var slipperiness = 0.005;
