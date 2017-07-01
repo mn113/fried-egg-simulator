@@ -1,40 +1,41 @@
 /* global view, Path, Group, Point, Size, onFrame, project */
-// Enabling Paperscript in this pane by loading:
-// https://codepen.io/robertverdes/pen/RWgZpo
 
 var canvas = document.querySelector("#canvas");
-//var context = canvas.getContext('2d');
 
 // Define graphical elements:
 var origin = new Point(300,300);
 
-var handle = new Path.Rectangle(origin, new Size(400,75));
-handle.fillColor = {
-	gradient: {
-		stops: [['#220', 0.1], ['#331', 0.5], ['#220', 0.9]]
-	},
-	origin: handle.bounds.bottomCenter,
-	destination: handle.bounds.topCenter
-};
-handle.rotate(45, origin);
-handle.position += new Point(100,50);
-handle.name = 'handle';
+var panGroup = new Group({name: 'panGroup'});
+function createPan() {
+	var handle = new Path.Rectangle(origin, new Size(400,75));
+	handle.fillColor = {
+		gradient: {
+			stops: [['#220', 0.1], ['#331', 0.5], ['#220', 0.9]]
+		},
+		origin: handle.bounds.bottomCenter,
+		destination: handle.bounds.topCenter
+	};
+	handle.rotate(45, origin);
+	handle.position += new Point(100,50);
+	handle.name = 'handle';
 
-var pan = new Path.Circle(origin, 275);
-pan.strokeWidth = 20;
-pan.strokeColor="#333";
-pan.fillColor = {
-	gradient: {
-		stops: [['#444', 0], ['#333', 0.7], ['#222', 0.9]],
-		radial: true
-	},
-	origin: pan.position,
-	destination: pan.bounds.rightCenter
-};
-pan.name= 'pan';
+	var pan = new Path.Circle(origin, 275);
+	pan.strokeWidth = 20;
+	pan.strokeColor="#333";
+	pan.fillColor = {
+		gradient: {
+			stops: [['#444', 0], ['#333', 0.7], ['#222', 0.9]],
+			radial: true
+		},
+		origin: pan.position,
+		destination: pan.bounds.rightCenter
+	};
+	pan.name= 'pan';
 
-var panGroup = new Group([handle, pan]);
-panGroup.name = 'panGroup';
+	panGroup.addChildren([handle, pan]);
+}
+createPan();
+var pan = panGroup.children['pan'];
 
 // Make clipping mask to keep oil in pan:
 var oilGroup = new Group({name: 'oilGroup', clipped: true});
@@ -63,16 +64,16 @@ function addOil(amount) {
 	oilGroup.addChild(oil);
 	oilInPan += amount;
 }
-//addOil(1);
 
-var remnants = new Group();
-remnants.name = 'remnants';
+var remnants = new Group({name: 'remnantGroup'});
+
 
 // EGGS
 
+var eggGroup = new Group({name: 'eggGroup'});
 var eggCounter = 0;
 function createEgg(location) {
-	if (eggCounter >= 1) return;
+	if (eggCounter >= 2) return;
 
 	var albumen = new Path.Star(location, 8, 60, 58);
 	albumen.name = 'albumen';
@@ -92,12 +93,14 @@ function createEgg(location) {
 	};
 
 	var egg = new Group([albumen, yolk]);
-	eggCounter++;
 	egg.name = "egg"+eggCounter;
 	egg.data = {
 		scaling: 1,
 		doneness: 0
 	};
+	eggGroup.addChild(egg);
+	eggCounter++;
+	sounds.playSound('frying');	// 54-second mp3; need to stop at timer end
 }
 
 
@@ -122,8 +125,8 @@ project.activeLayer.on('mousemove', tiltPan);
 
 // CLOCK
 
-// Count down in 1-second steps:
 var gameTimer = 30;
+// Count down in 1-second steps:
 var clockLoop = setInterval(function() {
 	gameTimer -= 1;
 	// Prepare & draw HTML timer:
@@ -136,17 +139,29 @@ var clockLoop = setInterval(function() {
 
 	// Finished timer?
 	if (gameTimer <= 0.02) {
-		clearInterval(clockLoop);
-		// Stop animations:
-		view.onFrame = null;
-		// Reset pan tilt & disable event:
-		project.activeLayer.off('mousemove', tiltPan);
-		canvas.style.transform = null;
-		pan.fillColor.origin = origin;
-		canvas.classList.remove("shake-slow");
+		endGame();
 	}
 }, 1000);
 //canvas.classList.add("shake-slow");
+
+function endGame() {
+	// Stop clock:
+	clearInterval(clockLoop);
+	// Stop all sfx:
+	sounds.stopAll();
+	// Stop animations:
+	view.onFrame = null;
+	// Reset pan tilt & disable event:
+	canvas.style.transform = null;
+	pan.fillColor.origin = origin;
+	project.activeLayer.off('mousemove', tiltPan);
+	//canvas.classList.remove("shake-slow");
+	// Finish with a freeze-frame:
+	photoFinish();
+}
+
+
+// MAIN ANIMATION LOOP
 
 var slipperiness = 0.05 * oilInPan;
 var initialBounds = new Size(200,200);
@@ -155,18 +170,17 @@ var maxBounds = initialBounds * 1.75;
 // Easing from https://gist.github.com/gre/1650294
 function easeOutCubic(t) { return (--t)*t*t+1; }
 
-// Main animation loop:
 function onFrame(event) {
 	//console.log(project.activeLayer.children);
 	// If an egg is present:
-	if (project.activeLayer.lastChild.hasChildren())  {
+	if (eggGroup && project.activeLayer.lastChild.hasChildren())  {
 		// Handle all existing eggs:
-		var eggs = project.activeLayer.children.filter(function(item) {
-			return item.name && item.name.startsWith('egg');
-		});
+		//var eggs = project.activeLayer.children.filter(function(item) {
+		//	return item.name && item.name.startsWith('egg');
+		//});
 		//console.log(eggs.length, "egg groups");
-		eggs.forEach(function(egg) {
-			// Cook egg:
+		eggGroup.children.forEach(function(egg) {
+			// Cook egg rapidly:
 			if (egg.data.doneness < 1) {
 				egg.data.doneness += 0.0005;	// 2000 iterations -> 1
 			}
@@ -174,7 +188,7 @@ function onFrame(event) {
 			var yolk = egg.children['yolk'];
 
 			// Make white grow, then stop:
-			if (egg.data.scaling < 1.5) {
+			if (egg.data.scaling < 1.7) {
 				var pct = event.time / 30;	// goes 0 -> 1
 				var growth = 1.001 * easeOutCubic(pct);
 				egg.data.scaling *= 1.001;
@@ -196,17 +210,17 @@ function onFrame(event) {
 			// Cut albumen path if it intersects pan edge:
 			/*
 			if (albumen.intersects(pan)) {
-			// Store chopped part elsewhere:
-			var edge = albumen.subtract(pan, {insert: false});
-			//edge.fillColor = 'green';
-			edge.copyTo(remnants);
-			edge.remove();
-			// Assign remaining egg white to albumen:
-			var temp = albumen.intersect(pan);
-			albumen.remove();
-			albumen = temp;
-		}
-		*/
+				// Store chopped part elsewhere:
+				var edge = albumen.subtract(pan, {insert: false});
+				//edge.fillColor = 'green';
+				edge.copyTo(remnants);
+				edge.remove();
+				// Assign remaining egg white to albumen:
+				var temp = albumen.intersect(pan);
+				albumen.remove();
+				albumen = temp;
+			}
+			*/
 		});
 	}
 	// Move oil too (very slippery!):
@@ -228,6 +242,7 @@ function setToolMode(mode) {
 	if (mode.length > 0) document.body.classList.add(mode+'tool');
 	console.log((mode ? mode : 'no') + ' tool enabled');
 }
+
 function clickHandler(event) {
 	console.log('inside', window.toolMode);
 	switch (window.toolMode) {
@@ -257,34 +272,16 @@ function clickHandler(event) {
 }
 /*
 function dragHandler(event) {
-console.log(event.point);
-// salt, pepper, ketchup, brownsauce
-return false;
+	console.log(event.point);
+	// salt, pepper, ketchup, brownsauce
+	return false;
 }*/
 // Attach events:
 pan.onMouseUp = clickHandler;
 oilGroup.onMouseUp = clickHandler;
+eggGroup.onMouseUp = clickHandler;
 //pan.onMouseDrag = dragHandler;
-//eggs.onMouseDrag = dragHandler;	// DEFINE eggs FIRST
 
-
-// EDGES
-
-/*
-albumen.onMouseUp = function(event) {
-console.log("click", this.curves.length, "curves");
-// Double the number of points:
-var curvesNow = this.curves;
-var bits = this.curves.length;
-//this.curves.forEach(function(curve,i) {
-for (var i = 0; i < bits; i+=2) {
-this.curves[i].divideAt(0.5);	// changes array
-this.smooth();
-};
-this.selected = false;
-this.selected = true;
-};
-*/
 var colours = {
 	ketchup: 'red',
 	brownsauce: 'saddlebrown',
@@ -292,10 +289,13 @@ var colours = {
 	pepper: 'black'
 };
 
-var sauceGroup = new Group({name: 'sauceGroup'});
+var sauceGroup = null;
 function addSauce(start, end, type) {
+	// Defaults:
 	if (typeof end === 'undefined') end = null;
 	if (typeof type === 'undefined') type = 'ketchup';
+	// New container if it doesn't exist:
+	if (!sauceGroup) sauceGroup = new Group({name: 'sauceGroup'});
 
 	if (end) {
 		// Add line of sauce
@@ -316,18 +316,21 @@ function addSauce(start, end, type) {
 			fillColor: colours[type]
 		}));
 	}
+	if (Math.random() > 0.5) sounds.playSound('splat');
+	else sounds.playSound('splurt');
+
 	console.log(project.activeLayer.children);
 }
-//addSauce(origin, 0, 'brownsauce');		// ok
-//addSauce(origin + 50, 0, 'ketchup');	// ok
-//addSauce(origin - 50, origin + 100, 'ketchup');	// ok
 
 function addSalt(start, end, type) {
+	// Defaults:
 	if (typeof end === 'undefined') end = null;
 	if (typeof type === 'undefined') type = 'salt';
+	// New container if it doesn't exist:
+	if (!sauceGroup) sauceGroup = new Group({name: 'sauceGroup'});
 
 	if (!end) {
-		// Add pinch of salt
+		// Add pinch of salt/pepper
 		var grains = 10 + (15 * Math.random());
 		while (grains > 0) {
 			grains--;
@@ -338,6 +341,54 @@ function addSalt(start, end, type) {
 				fillColor: colours[type]
 			}));
 		}
+		sounds.playSound('grind');
+	}
+	else {
+		// Add line of salt/pepper
 	}
 }
-//addSalt(origin, 0, 'salt');		// ok
+
+
+// EDGES
+
+/*
+albumen.onMouseUp = function(event) {
+	console.log("click", this.curves.length, "curves");
+	// Double the number of points:
+	var curvesNow = this.curves;
+	var bits = this.curves.length;
+	//this.curves.forEach(function(curve,i) {
+	for (var i = 0; i < bits; i+=2) {
+		this.curves[i].divideAt(0.5);	// changes array
+		this.smooth();
+	};
+	this.selected = false;
+	this.selected = true;
+};
+*/
+
+var sounds = {		// Empty container for all the sounds to be used
+	frying: {url: 'https://marthost.uk/fried-egg/sfx/frying.mp3', volume: 50},
+	grind: {url: 'https://marthost.uk/fried-egg/sfx/grind_twice.mp3', volume: 50},
+	splat: {url: 'https://marthost.uk/fried-egg/sfx/splat.mp3', volume: 50},
+	splurt: {url: 'https://marthost.uk/fried-egg/sfx/splurt.mp3', volume: 50},
+	camera: {url: 'https://marthost.uk/fried-egg/sfx/camera.mp3', volume: 50},
+
+	playSound: function(key) {
+		var snd = new Audio(sounds[key].url); 	// Audio buffers automatically when created
+		snd.volume = sounds[key].volume / 100;
+		snd.play();
+		sounds.all.push(snd);	// store for later access
+	},
+	all: [],
+	stopAll: function() {
+		sounds.all.forEach(function(snd) {
+			snd.pause();
+		});
+	}
+};
+
+function photoFinish() {
+	// flash white
+	sounds.playSound('camera');
+}
