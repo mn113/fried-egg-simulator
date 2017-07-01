@@ -1,4 +1,6 @@
 /* global view, Path, Group, Point, Size, onFrame, project */
+// Enabling Paperscript in this pane by loading:
+// https://codepen.io/robertverdes/pen/RWgZpo
 
 var canvas = document.querySelector("#canvas");
 //var context = canvas.getContext('2d');
@@ -19,7 +21,6 @@ handle.position += new Point(100,50);
 handle.name = 'handle';
 
 var pan = new Path.Circle(origin, 275);
-pan.fillColor = "#666";
 pan.strokeWidth = 20;
 pan.strokeColor="#333";
 pan.fillColor = {
@@ -31,6 +32,9 @@ pan.fillColor = {
 	destination: pan.bounds.rightCenter
 };
 pan.name= 'pan';
+
+var panGroup = new Group([handle, pan]);
+panGroup.name = 'panGroup';
 
 // Make clipping mask to keep oil in pan:
 var oilGroup = new Group({name: 'oilGroup', clipped: true});
@@ -59,8 +63,7 @@ function addOil(amount) {
 	oilGroup.addChild(oil);
 	oilInPan += amount;
 }
-addOil(1);
-console.log(project.activeLayer.children);
+//addOil(1);
 
 var remnants = new Group();
 remnants.name = 'remnants';
@@ -97,12 +100,13 @@ function createEgg(location) {
 	};
 }
 
+
 // PAN TILT
 
 var mouseAt = origin;
-project.activeLayer.onMouseMove = function(event) {
+function tiltPan(mouseEvent) {
 	// Set mouse pos:
-	mouseAt = event.point;
+	mouseAt = mouseEvent.point;
 	// Apply 3d tilt to canvas based on mouse offset:
 	var dx = mouseAt.x - origin.x,
 		dy = origin.y - mouseAt.y,
@@ -112,7 +116,9 @@ project.activeLayer.onMouseMove = function(event) {
 	// Move pan's lighting gradient:
 	pan.fillColor.origin = pan.position + new Point(dx/10,-dy/10);
 	return false;
-};
+}
+project.activeLayer.on('mousemove', tiltPan);
+
 
 // CLOCK
 
@@ -134,15 +140,17 @@ var clockLoop = setInterval(function() {
 		// Stop animations:
 		view.onFrame = null;
 		// Reset pan tilt & disable event:
-		pan.off('mousemove');
+		project.activeLayer.off('mousemove', tiltPan);
 		canvas.style.transform = null;
 		pan.fillColor.origin = origin;
+		canvas.classList.remove("shake-slow");
 	}
 }, 1000);
+//canvas.classList.add("shake-slow");
 
 var slipperiness = 0.05 * oilInPan;
-//var initialBounds = new Size(200,200);
-//var maxBounds = initialBounds * 1.75;
+var initialBounds = new Size(200,200);
+var maxBounds = initialBounds * 1.75;
 
 // Easing from https://gist.github.com/gre/1650294
 function easeOutCubic(t) { return (--t)*t*t+1; }
@@ -188,17 +196,17 @@ function onFrame(event) {
 			// Cut albumen path if it intersects pan edge:
 			/*
 			if (albumen.intersects(pan)) {
-				// Store chopped part elsewhere:
-				var edge = albumen.subtract(pan, {insert: false});
-				//edge.fillColor = 'green';
-				edge.copyTo(remnants);
-				edge.remove();
-				// Assign remaining egg white to albumen:
-				var temp = albumen.intersect(pan);
-				albumen.remove();
-				albumen = temp;
-			}
-			*/
+			// Store chopped part elsewhere:
+			var edge = albumen.subtract(pan, {insert: false});
+			//edge.fillColor = 'green';
+			edge.copyTo(remnants);
+			edge.remove();
+			// Assign remaining egg white to albumen:
+			var temp = albumen.intersect(pan);
+			albumen.remove();
+			albumen = temp;
+		}
+		*/
 		});
 	}
 	// Move oil too (very slippery!):
@@ -212,20 +220,52 @@ function onFrame(event) {
 
 // TOOLBOX
 
-var toolMode = '';
+var toolMode;
 function setToolMode(mode) {
-	toolMode = mode;
+	window.toolMode = mode;
 	// Set body class:
 	document.body.classList = [];
 	if (mode.length > 0) document.body.classList.add(mode+'tool');
+	console.log((mode ? mode : 'no') + ' tool enabled');
 }
-pan.onMouseUp = function(event) {
-	//if (toolMode == 'egg') {	// NOT WORKING
-	createEgg(event.point);
-	//}
-	setToolMode('');
+function clickHandler(event) {
+	console.log('inside', window.toolMode);
+	switch (window.toolMode) {
+	case 'egg':
+		createEgg(event.point);
+		setToolMode('');
+		break;
+	case 'oil':
+		addOil(0.5);
+		setToolMode('');
+		break;
+	case 'salt':
+		addSalt(event.point, null, 'salt');
+		break;
+	case 'pepper':
+		addSalt(event.point, null, 'pepper');
+		break;
+	case 'ketchup':
+		addSauce(event.point, null, 'ketchup');
+		break;
+	case 'brownsauce':
+		addSauce(event.point, null, 'brownsauce');
+		break;
+	}
 	console.log(project.activeLayer.children);
-};
+	return false;
+}
+/*
+function dragHandler(event) {
+console.log(event.point);
+// salt, pepper, ketchup, brownsauce
+return false;
+}*/
+// Attach events:
+pan.onMouseUp = clickHandler;
+oilGroup.onMouseUp = clickHandler;
+//pan.onMouseDrag = dragHandler;
+//eggs.onMouseDrag = dragHandler;	// DEFINE eggs FIRST
 
 
 // EDGES
@@ -245,3 +285,59 @@ this.selected = false;
 this.selected = true;
 };
 */
+var colours = {
+	ketchup: 'red',
+	brownsauce: 'saddlebrown',
+	salt: 'white',
+	pepper: 'black'
+};
+
+var sauceGroup = new Group({name: 'sauceGroup'});
+function addSauce(start, end, type) {
+	if (typeof end === 'undefined') end = null;
+	if (typeof type === 'undefined') type = 'ketchup';
+
+	if (end) {
+		// Add line of sauce
+		sauceGroup.addChild(new Path.Line({
+			from: start,
+			to: end,
+			strokeWidth: 10 + 10 * Math.random(),
+			strokeCap: 'round',
+			strokeColor: colours[type]
+			// random dashoffset?
+		}));
+	}
+	else {
+		// Add dot of sauce
+		sauceGroup.addChild(new Path.Circle({
+			center: start,
+			radius: 8 + 15 * Math.random(),
+			fillColor: colours[type]
+		}));
+	}
+	console.log(project.activeLayer.children);
+}
+//addSauce(origin, 0, 'brownsauce');		// ok
+//addSauce(origin + 50, 0, 'ketchup');	// ok
+//addSauce(origin - 50, origin + 100, 'ketchup');	// ok
+
+function addSalt(start, end, type) {
+	if (typeof end === 'undefined') end = null;
+	if (typeof type === 'undefined') type = 'salt';
+
+	if (!end) {
+		// Add pinch of salt
+		var grains = 10 + (15 * Math.random());
+		while (grains > 0) {
+			grains--;
+			var offset = [60*Math.random(), 60*Math.random()];
+			sauceGroup.addChild(new Path.Rectangle({
+				point: start + offset,
+				size: 2 + (4 * Math.random()),
+				fillColor: colours[type]
+			}));
+		}
+	}
+}
+//addSalt(origin, 0, 'salt');		// ok

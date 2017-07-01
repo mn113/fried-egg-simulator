@@ -5,10 +5,12 @@ body {
 	align-items: center;
 	justify-content: center;
 }
+svg {
+	border: 1px dashed yellow;
+}
 #canvas {
 	position: absolute;
 	top: 0;
-	left: 0;
 	width: 598px;
 	height: 598px;
 	border: 1px dashed teal;
@@ -16,9 +18,19 @@ body {
 	transform-type: preserve-3d;
 	cursor: grab;
 }
-body.eggtool {
-	cursor: url(https://marthost.uk/fried-egg/img/egg2-icon.png) 40 40, crosshair;
+body.eggtool { cursor: url(https://marthost.uk/fried-egg/img/egg2-icon.png) 40 40, crosshair;}
+body.oiltool, body.salttool, body.peppertool, body.ketchuptool, body.brownsaucetool
+{ cursor: crosshair; }
+
+.eggtool #egg-tool,
+.oiltool #oil-tool,
+.salttool #salt-tool,
+.peppertool #pepper-tool,
+.ketchuptool #ketchup-tool,
+.brownsaucetool #brownsauce-tool {
+	border-color: yellow;
 }
+
 #timer {
 	position: absolute;
 	top: 10px;
@@ -42,11 +54,12 @@ li {
 	background: rgba(255,255,255,0.2);
 	cursor: pointer;
 	color: transparent;
-	display: none;
+	xdisplay: none;
 }
 li:first-child {
 	display: block;
 }
+#oil-tool { background: url(https://marthost.uk/fried-egg/img/oil-icon.png); }
 #egg-tool { background: url(https://marthost.uk/fried-egg/img/egg2-icon.png); }
 #salt-tool { background: url(https://marthost.uk/fried-egg/img/salt-icon.png); }
 #pepper-tool { background: url(https://marthost.uk/fried-egg/img/pepper-icon.png); }
