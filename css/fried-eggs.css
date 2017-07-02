@@ -6,14 +6,14 @@ body {
 	justify-content: center;
 }
 svg {
-	border: 1px dashed yellow;
+	xborder: 1px dashed yellow;
 }
 #canvas {
 	position: absolute;
 	top: 0;
 	width: 598px;
 	height: 598px;
-	border: 1px dashed teal;
+	xborder: 1px dashed teal;
 	transform-origin: center;
 	transform-type: preserve-3d;
 	cursor: grab;
@@ -48,16 +48,32 @@ ul#tools {
 	list-style: none;
 }
 li {
+	position: relative;
 	width: 80px;
 	height: 80px;
 	border: 1px solid #999;
 	background: rgba(255,255,255,0.2);
 	cursor: pointer;
 	color: transparent;
-	xdisplay: none;
+	transition: 1s filter;
 }
-li:first-child {
-	display: block;
+li.disabled {
+	filter: grayscale(0.5) contrast(0.25);
+	cursor: not-allowed;
+}
+li span {
+	display: inline-block;
+	background: #000;
+	border: 1px solid #eee;
+	border-radius: 0.6em;
+	width: 1.2em;
+	height: 1.2em;
+	color: #eee;
+	position: absolute;
+	top: 2px;
+	left: 2px;
+	text-align: center;
+	line-height: 1.4em;
 }
 #oil-tool { background: url(https://marthost.uk/fried-egg/img/oil-icon.png); }
 #egg-tool { background: url(https://marthost.uk/fried-egg/img/egg2-icon.png); }
@@ -65,3 +81,16 @@ li:first-child {
 #pepper-tool { background: url(https://marthost.uk/fried-egg/img/pepper-icon.png); }
 #ketchup-tool { background: url(https://marthost.uk/fried-egg/img/ketchup-icon.png); }
 #brownsauce-tool { background: url(https://marthost.uk/fried-egg/img/brownsauce-icon.png); }
+
+.flash {
+	position: fixed;
+	width: 100vw;
+	height: 100vh;
+	background: white;
+	animation: 1s fadeout 1;
+}
+
+@keyframes fadeout {
+	from {opacity: 1}
+	to   {opacity: 0}
+}

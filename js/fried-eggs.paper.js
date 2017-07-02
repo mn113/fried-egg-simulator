@@ -1,4 +1,7 @@
-/* global view, Path, Group, Point, Size, onFrame, project */
+/* global $, view, Path, Group, Point, Size, onFrame, project */
+
+// Enabling Paperscript in this pane by loading:
+// https://codepen.io/robertverdes/pen/RWgZpo
 
 var canvas = document.querySelector("#canvas");
 
@@ -154,8 +157,10 @@ function tiltPan(mouseEvent) {
 	// Move oil's specular highlight:
 	if (oilClipGroup.hasChildren()) {
 		var oilSpecular = oilGroup.children['oilSpecular'];
-		//oilSpecular.translate(-vector.normalize());
-		oilSpecular.fillColor.highlight = mouseAt;
+		if (oilSpecular) {
+			//oilSpecular.translate(-vector.normalize());
+			oilSpecular.fillColor.highlight = mouseAt;
+		}
 	}
 	return false;
 }
@@ -175,6 +180,7 @@ var clockLoop = setInterval(function() {
 	timeString += Math.floor(gameTimer);
 	htmlTimer.innerHTML = timeString;
 	if (gameTimer < 10) htmlTimer.style.color = 'red';
+	if (gameTimer === 15) $("li.disabled").removeClass("disabled");
 
 	// Finished timer?
 	if (gameTimer <= 0.02) {
@@ -197,6 +203,15 @@ function endGame() {
 	//canvas.classList.remove("shake-slow");
 	// Finish with a freeze-frame:
 	photoFinish();
+}
+
+function photoFinish() {
+	// flash white
+	$("<div/>").addClass("flash").appendTo($("body"));
+	setTimeout(function() {
+		$(".flash").remove();
+	}, 1000);
+	sounds.playSound('camera');
 }
 
 
@@ -284,6 +299,8 @@ function onFrame(event) {
 
 var toolMode;
 function setToolMode(mode) {
+	// Stop if tool disabled:
+	if ($("li#"+mode+"-tool").hasClass("disabled")) return;
 	window.toolMode = mode;
 	// Set body class:
 	document.body.classList = [];
@@ -292,7 +309,8 @@ function setToolMode(mode) {
 }
 
 function clickHandler(event) {
-	console.log('inside', window.toolMode);
+	// Need to know targeted element:
+	console.log("E", event);
 	switch (window.toolMode) {
 	case 'egg':
 		createEgg(event.point);
@@ -303,16 +321,16 @@ function clickHandler(event) {
 		setToolMode('');
 		break;
 	case 'salt':
-		addSalt(event.point, null, 'salt');
+		addSalt(event.target, event.point, 'salt');
 		break;
 	case 'pepper':
-		addSalt(event.point, null, 'pepper');
+		addSalt(event.target, event.point, 'pepper');
 		break;
 	case 'ketchup':
-		addSauce(event.point, null, 'ketchup');
+		addSauce(event.target, event.point, null, 'ketchup');
 		break;
 	case 'brownsauce':
-		addSauce(event.point, null, 'brownsauce');
+		addSauce(event.target, event.point, null, 'brownsauce');
 		break;
 	}
 	console.log(project.activeLayer.children);
@@ -338,27 +356,43 @@ var colours = {
 };
 
 var sauceGroup = null;
-function addSauce(start, end, type) {
+function addSauce(target, start, end, type) {
 	// Defaults:
 	if (typeof end === 'undefined') end = null;
 	if (typeof type === 'undefined') type = 'ketchup';
 	// New container if it doesn't exist:
 	if (!sauceGroup) sauceGroup = new Group({name: 'sauceGroup'});
+	// Find target:
+	if (target.name === 'eggGroup') {
+		// Target the specific egg:
+		target.children.forEach(function (item) {
+			if (start.isInside(item.bounds)) target = item;
+		});
+	}
+	else if (target.name === 'pan') {
+		target = panGroup;
+	}
+	else {
+		target = sauceGroup;
+	}
+
+	console.log("T:", target.name);
 
 	if (end) {
-		// Add line of sauce
-		sauceGroup.addChild(new Path.Line({
+		// Add line of sauce:
+		target.addChild(new Path.Line({
 			from: start,
 			to: end,
 			strokeWidth: 10 + 10 * Math.random(),
 			strokeCap: 'round',
 			strokeColor: colours[type]
 			// random dashoffset?
+			// random width?
 		}));
 	}
 	else {
-		// Add dot of sauce
-		sauceGroup.addChild(new Path.Circle({
+		// Add dot of sauce:
+		target.addChild(new Path.Circle({
 			center: start,
 			radius: 8 + 15 * Math.random(),
 			fillColor: colours[type]
@@ -370,50 +404,45 @@ function addSauce(start, end, type) {
 	console.log(project.activeLayer.children);
 }
 
-function addSalt(start, end, type) {
-	// Defaults:
-	if (typeof end === 'undefined') end = null;
-	if (typeof type === 'undefined') type = 'salt';
+function addSalt(target, point, type) {
 	// New container if it doesn't exist:
 	if (!sauceGroup) sauceGroup = new Group({name: 'sauceGroup'});
-
-	if (!end) {
-		// Add pinch of salt/pepper
-		var grains = 10 + (15 * Math.random());
-		while (grains > 0) {
-			grains--;
-			var offset = [-30 + 60*Math.random(), -30 + 60*Math.random()];
-			sauceGroup.addChild(new Path.Rectangle({
-				point: start + offset,
-				size: 2 + (4 * Math.random()),
-				fillColor: colours[type]
-			}));
-		}
-		sounds.playSound('grind');
+	// Defaults:
+	if (typeof type === 'undefined') type = 'salt';
+	if (target.name === 'eggGroup') {
+		// Target the specific egg:
+		target.children.forEach(function (item) {
+			if (point.isInside(item.bounds)) target = item;
+		});
+	}
+	else if (target.name === 'pan') {
+		target = panGroup;
 	}
 	else {
-		// Add line of salt/pepper
+		target = sauceGroup;
 	}
+
+	console.log("T:", target.name);
+
+	// Add pinch of salt/pepper
+	var pinchGroup = new Group();
+	var grains = 10 + (15 * Math.random());
+	while (grains > 0) {
+		grains--;
+		var offset = [-30 + 60*Math.random(), -30 + 60*Math.random()];
+		// Attach to targeted pan/egg/oil/sauce:
+		pinchGroup.addChild(new Path.Rectangle({
+			point: point + offset,
+			size: 2 + (4 * Math.random()),
+			fillColor: colours[type]
+		}));
+	}
+	target.addChild(pinchGroup);
+	sounds.playSound('grind');
 }
 
 
-// EDGES
-
-/*
-albumen.onMouseUp = function(event) {
-	console.log("click", this.curves.length, "curves");
-	// Double the number of points:
-	var curvesNow = this.curves;
-	var bits = this.curves.length;
-	//this.curves.forEach(function(curve,i) {
-	for (var i = 0; i < bits; i+=2) {
-		this.curves[i].divideAt(0.5);	// changes array
-		this.smooth();
-	};
-	this.selected = false;
-	this.selected = true;
-};
-*/
+// SOUNDS
 
 var sounds = {		// Empty container for all the sounds to be used
 	frying: {url: 'https://marthost.uk/fried-egg/sfx/frying.mp3', volume: 50},
@@ -436,7 +465,17 @@ var sounds = {		// Empty container for all the sounds to be used
 	}
 };
 
-function photoFinish() {
-	// flash white
-	sounds.playSound('camera');
-}
+
+// KEY BINDINGS
+
+$(document).on('keydown', function (e) {
+	console.log(e.key);
+	switch (e.key) {
+	case '1': setToolMode('oil'); break;
+	case '2': setToolMode('egg'); break;
+	case '3': setToolMode('salt'); break;
+	case '4': setToolMode('pepper'); break;
+	case '5': setToolMode('ketchup'); break;
+	case '6': setToolMode('brownsauce'); break;
+	}
+});
