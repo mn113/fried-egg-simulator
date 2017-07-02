@@ -1,8 +1,8 @@
 body {
+	height: 100vh;
 	background: black;
 	perspective: 800px;
 	display: flex;
-	align-items: center;
 	justify-content: center;
 }
 svg {
@@ -18,7 +18,7 @@ svg {
 	transform-type: preserve-3d;
 	cursor: grab;
 }
-body.eggtool { cursor: url(https://marthost.uk/fried-egg/img/egg2-icon.png) 40 40, crosshair;}
+body.eggtool { cursor: url(../img/egg2-icon.png) 40 40, crosshair;}
 body.oiltool, body.salttool, body.peppertool, body.ketchuptool, body.brownsaucetool
 { cursor: crosshair; }
 
@@ -75,12 +75,12 @@ li span {
 	text-align: center;
 	line-height: 1.4em;
 }
-#oil-tool { background: url(https://marthost.uk/fried-egg/img/oil-icon.png); }
-#egg-tool { background: url(https://marthost.uk/fried-egg/img/egg2-icon.png); }
-#salt-tool { background: url(https://marthost.uk/fried-egg/img/salt-icon.png); }
-#pepper-tool { background: url(https://marthost.uk/fried-egg/img/pepper-icon.png); }
-#ketchup-tool { background: url(https://marthost.uk/fried-egg/img/ketchup-icon.png); }
-#brownsauce-tool { background: url(https://marthost.uk/fried-egg/img/brownsauce-icon.png); }
+#oil-tool { background: url(../img/oil-icon.png); }
+#egg-tool { background: url(../img/egg2-icon.png); }
+#salt-tool { background: url(../img/salt-icon.png); }
+#pepper-tool { background: url(../img/pepper-icon.png); }
+#ketchup-tool { background: url(../img/ketchup-icon.png); }
+#brownsauce-tool { background: url(../img/brownsauce-icon.png); }
 
 .flash {
 	position: fixed;
@@ -88,9 +88,47 @@ li span {
 	height: 100vh;
 	background: white;
 	animation: 1s fadeout 1;
+	animation-fill-mode: forwards;
 }
 
 @keyframes fadeout {
 	from {opacity: 1}
 	to   {opacity: 0}
+}
+
+
+#goal {
+	position: absolute;
+	bottom: 10px;
+	right: 10px;
+	width: 100px;
+	height: 100px;
+	border: 1px solid #666;
+	background: url(../img/goals.png) no-repeat;
+}
+#goal:before {
+	content: 'GOAL';
+	color: #eee;
+}
+
+#wobbletoggle {
+	position: absolute;
+	bottom: 10px;
+	left: 10px;
+	color: dodgerblue;
+	font: normal 3em Chewy, Helvetica;
+}
+#wobbletoggle.disabled {
+	color: #999;
+}
+#logo {
+	position: absolute;
+	top: calc(50% - 200px);
+	left: calc(50% - 300px);
+	width: 600px;
+	height: 400px;
+	background: url(../img/logo.png) no-repeat;
+	animation: 2s 2s fadeout;
+	animation-fill-mode: forwards;
+	pointer-events: none;
 }
