@@ -38,44 +38,73 @@ createPan();
 var pan = panGroup.children['pan'];
 
 // Make clipping mask to keep oil in pan:
-var oilGroup = new Group({name: 'oilGroup', clipped: true});
-oilGroup.addChild(new Path.Circle({
+var oilClipGroup = new Group({name: 'oilClipGroup', clipped: true});
+oilClipGroup.addChild(new Path.Circle({
 	center: origin,
-	radius: 275,
+	radius: 265,	// half strokeWidth less than pan
 	strokeWidth: 1,
 	strokeColor: 'blue',
 	clipMask: true
 }));
+// Make single oil group:
+var oilGroup = new Group({name: 'oilGroup', clipped: true});
+oilClipGroup.addChild(oilGroup);
 
 // Adding oil:
 var oilInPan = 0.1;
 function addOil(amount) {
-	var oil = new Path.Circle(origin, 150);
-	oil.fillColor = {
-		gradient: {
-			stops: [['#997', 0], ['#997', 0.84], ['#ddb', 0.85], ['#ddb', 0.94], ['#000', 0.95]],
-			radial: true
-		},
-		origin: oil.position + new Point(10,20),
-		destination: oil.bounds.topCenter
-	};
-	oil.opacity = 0.05;
-	oil.name = 'oil';
-	oilGroup.addChild(oil);
+	if (oilGroup.isEmpty()) {
+		var clip = new Path.Circle({
+			center: origin,
+			radius: 100,
+			clipMask: true,
+			name: 'clip'
+		});
+
+		var oil = new Path.Circle({
+			center: origin,
+			radius: 100,
+			fillColor: '#221',
+			opacity: 0.1,
+			name: 'oil'
+		});
+
+		var oilSpecular = new Path.Circle({
+			center: origin,
+			radius: 90,
+			fillColor: {
+				gradient: {
+					stops: ['#ffc','#bb9'],
+					radial: true
+				},
+				origin: oil.position + [0,20],
+				destination: oil.bounds.rightCenter
+			},
+			opacity: 0.1,
+			name: 'oilSpecular'
+		});
+
+		oilGroup.addChildren([clip, oil, oilSpecular]);
+	}
+	else {
+		// Increase radii:
+		oilGroup.scale(1.2);
+	}
+	// Add oil numerically:
 	oilInPan += amount;
 }
-
-var remnants = new Group({name: 'remnantGroup'});
 
 
 // EGGS
 
+var remnantGroup = new Group({name: 'remnantGroup'});
 var eggGroup = new Group({name: 'eggGroup'});
 var eggCounter = 0;
+
 function createEgg(location) {
 	if (eggCounter >= 2) return;
 
-	var albumen = new Path.Star(location, 8, 60, 58);
+	var albumen = new Path.Star(location, 16, 60, 58);
 	albumen.name = 'albumen';
 	albumen.fillColor = 'white';
 	albumen.opacity = 0.05;
@@ -107,17 +136,27 @@ function createEgg(location) {
 // PAN TILT
 
 var mouseAt = origin;
+var tiltAngle = 0;
 function tiltPan(mouseEvent) {
 	// Set mouse pos:
 	mouseAt = mouseEvent.point;
+	tiltAngle = origin.getDirectedAngle(mouseAt);
+	//console.log(tiltAngle);
 	// Apply 3d tilt to canvas based on mouse offset:
-	var dx = mouseAt.x - origin.x,
+	var dx = origin.x - mouseAt.x,
 		dy = origin.y - mouseAt.y,
 		distsq = dx*dx + dy*dy;
-	var rotStr = 'rotate3d('+dy+','+dx+',0,'+distsq/5000+'deg)';
+	var rotStr = 'rotate3d('+dy+','+(-dx)+',0,'+distsq/5000+'deg)';
 	canvas.style.transform = rotStr;
 	// Move pan's lighting gradient:
-	pan.fillColor.origin = pan.position + new Point(dx/10,-dy/10);
+	var vector = new Point(dx,dy);
+	pan.fillColor.origin = pan.position + new Point(-dx/10,-dy/10);
+	// Move oil's specular highlight:
+	if (oilClipGroup.hasChildren()) {
+		var oilSpecular = oilGroup.children['oilSpecular'];
+		//oilSpecular.translate(-vector.normalize());
+		oilSpecular.fillColor.highlight = mouseAt;
+	}
 	return false;
 }
 project.activeLayer.on('mousemove', tiltPan);
@@ -197,7 +236,16 @@ function onFrame(event) {
 
 			// Increase opacity of white:
 			//albumen.opacity += 0.00125;	// 800 iterations -> 1
-			albumen.opacity = 0.2 + (1.6 * egg.data.doneness);
+			albumen.opacity = 0.2 + (1.6 * egg.data.doneness);	// 0.2 -> 1 in 1000 iterations
+
+			// Vary (some) edges of albumen:
+			albumen.segments.forEach(function(segment) {
+				if (Math.random() > 0.95) {
+					// Move point:
+					segment.point.set(segment.point + Point.random());
+				}
+			});
+			// Also vary edges based on pan tilt
 
 			// Constantly move egg towards mouseAt:
 			var vector = mouseAt - egg.position;
@@ -213,7 +261,7 @@ function onFrame(event) {
 				// Store chopped part elsewhere:
 				var edge = albumen.subtract(pan, {insert: false});
 				//edge.fillColor = 'green';
-				edge.copyTo(remnants);
+				edge.copyTo(remnantGroup);
 				edge.remove();
 				// Assign remaining egg white to albumen:
 				var temp = albumen.intersect(pan);
@@ -224,10 +272,10 @@ function onFrame(event) {
 		});
 	}
 	// Move oil too (very slippery!):
-	var oil = project.activeLayer.children['oilGroup'].children['oil'];
-	if (oil && oilInPan > 0.1) {
-		var oilVector = mouseAt - oil.position;
-		if (oilVector.length > 10) oil.position += oilVector / 100;
+	//var oilGroup = project.activeLayer.children['oilClipGroup'].children['oilGroup'];
+	if (oilGroup && oilInPan > 0.1) {
+		var oilVector = mouseAt - oilGroup.position;
+		if (oilVector.length > 10) oilGroup.position += oilVector / 100;
 	}
 }
 
@@ -334,7 +382,7 @@ function addSalt(start, end, type) {
 		var grains = 10 + (15 * Math.random());
 		while (grains > 0) {
 			grains--;
-			var offset = [60*Math.random(), 60*Math.random()];
+			var offset = [-30 + 60*Math.random(), -30 + 60*Math.random()];
 			sauceGroup.addChild(new Path.Rectangle({
 				point: start + offset,
 				size: 2 + (4 * Math.random()),
