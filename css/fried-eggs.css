@@ -11,6 +11,7 @@ svg {
 #canvas {
 	position: absolute;
 	top: 0;
+	left: calc(50% - 300px);
 	width: 598px;
 	height: 598px;
 	xborder: 1px dashed teal;

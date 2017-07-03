@@ -235,19 +235,11 @@ function onFrame(event) {
 	var slipperiness = 0.05 * oilInPan;
 	// If an egg is present:
 	if (eggGroup && project.activeLayer.lastChild.hasChildren())  {
-		// Multi-eggs:
-		if (eggGroup.children.length > 1) {
-			var e0 = eggGroup.children[0];
-			var e1 = eggGroup.children[1];
-			if (e0.intersects(e1)) {
-				// Merge
-				console.log("Merging", e0.name, "with", e1.name);
-				e0.addChildren(e1.children);
-				e1.remove();
-				console.log(eggGroup.children);
-			}
-		}
-		// Handle all existing eggs:
+		// Move eggs collectively towards mouseAt:
+		var eggVector = mouseAt - eggGroup.position;
+		if (eggVector.length > 10) eggGroup.position += eggVector * slipperiness;
+
+		// Cook all existing eggs:
 		eggGroup.children.forEach(function(egg) {
 			// Cook egg rapidly:
 			if (egg.data.doneness < 1) {
@@ -261,32 +253,34 @@ function onFrame(event) {
 				var pct = event.time / 30;	// goes 0 -> 1
 				var growth = 1.001 * easeOutCubic(pct);
 				egg.data.scaling *= 1.001;
-				albumen.scale(1.001, albumen.position);	// too much
+				albumen.scale(1.001, albumen.position);
 			}
 
 			// Increase opacity of white:
 			albumen.opacity = 0.2 + (1.6 * egg.data.doneness);	// 0.2 -> 1 in 1000 iterations
 
 			// Constantly move egg towards mouseAt:
-			var vector = mouseAt - egg.position;
-			if (vector.length > 10) egg.position += vector * slipperiness;
+			//var vector = mouseAt - egg.position;
+			//if (vector.length > 10) egg.position += vector * slipperiness;
 
 			// Move yolk within egg:
+			var vector = mouseAt - egg.position;
 			if (egg.data.doneness < 0.25 && vector.length > 10) yolk.position += vector * slipperiness/8;
 
 			// Vary (some) edges of albumen:
-			albumen.segments.forEach(function(segment) {
-				if (Math.random() > 0.95) {
-					// Move point:
-					segment.point.set(segment.point + (vector.normalize() * Point.random()));
-				}
-			});
+			if (egg.data.doneness < 0.5) {
+				albumen.segments.forEach(function(segment) {
+					if (Math.random() > 0.95) {
+						// Move point:
+						segment.point.set(segment.point + (vector.normalize() * Point.random()));
+					}
+				});
+			}
 
 			// Cut albumen path if it intersects pan edge:
 			if (albumen.intersects(pan)) {
 				// Store chopped part elsewhere:
 				var edge = albumen.subtract(pan, {insert: false});
-				//edge.fillColor = 'green';
 				edge.copyTo(remnantGroup);
 				edge.remove();
 				// Assign remaining egg white back to albumen:
@@ -311,9 +305,9 @@ function onFrame(event) {
 	if (oilGroup && oilInPan > 0.1) {
 		var oilVector = mouseAt - oilGroup.position;
 		if (oilVector.length > 10) oilGroup.position += oilVector / 100;
-		if (oilGroup.intersects(pan)) {
+		/*if (oilGroup.intersects(pan)) {
 			// change shape?
-		}
+		}*/
 	}
 }
 
@@ -495,12 +489,12 @@ document.addEventListener('keydown', function (e) {
 // SOUNDS
 
 var sounds = {		// Empty container for all the sounds to be used
-	frying: {url: 'https://marthost.uk/fried-egg/sfx/frying.mp3', volume: 50},
-	grind: {url: 'https://marthost.uk/fried-egg/sfx/grind_twice.mp3', volume: 50},
-	splat: {url: 'https://marthost.uk/fried-egg/sfx/splat.mp3', volume: 50},
-	splurt: {url: 'https://marthost.uk/fried-egg/sfx/splurt.mp3', volume: 50},
-	slideout: {url: 'https://marthost.uk/fried-egg/sfx/whistle.mp3', volume: 50},
-	camera: {url: 'https://marthost.uk/fried-egg/sfx/camera.mp3', volume: 50},
+	frying: {url: 'sfx/frying.mp3', volume: 50},
+	grind: {url: 'sfx/grind_twice.mp3', volume: 50},
+	splat: {url: 'sfx/splat.mp3', volume: 50},
+	splurt: {url: 'sfx/splurt.mp3', volume: 50},
+	slideout: {url: 'sfx/whistle.mp3', volume: 50},
+	camera: {url: 'sfx/camera.mp3', volume: 50},
 
 	playSound: function(key) {
 		var snd = new Audio(sounds[key].url); 	// Audio buffers automatically when created
